@@ -18,6 +18,7 @@ export async function addDonation(formData: FormData) {
   const sharesCount = parseInt(formData.get('sharesCount') as string)
   const sharesType = formData.get('sharesType') as string
   const country = formData.get('country') as string
+  const phone = (formData.get('phone') as string) || null
   const notes = (formData.get('notes') as string) || null
   const receipt = formData.get('receipt') as string
 
@@ -32,6 +33,7 @@ export async function addDonation(formData: FormData) {
       sharesType,
       country,
       referenceId: user.id,
+      phone,
       notes,
       receipt,
     },

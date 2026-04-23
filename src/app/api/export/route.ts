@@ -20,6 +20,7 @@ export async function GET() {
     'Hisse Türü': d.sharesType === 'BUYUKBAS' ? 'Büyükbaş' : 'Küçükbaş',
     'Ülke': d.country === 'CAD' ? 'Çad' : 'Tanzanya',
     'Referans (YK)': d.reference.name,
+    'Telefon': d.phone ?? '',
     'Not': d.notes ?? '',
     'Dekont': d.receipt === 'ALINDI' ? 'Alındı' : 'Alınmadı',
     'Tarih': new Date(d.createdAt).toLocaleDateString('tr-TR'),
@@ -34,6 +35,7 @@ export async function GET() {
     { wch: 12 },  // Hisse Türü
     { wch: 12 },  // Ülke
     { wch: 16 },  // Referans
+    { wch: 16 },  // Telefon
     { wch: 30 },  // Not
     { wch: 12 },  // Dekont
     { wch: 12 },  // Tarih

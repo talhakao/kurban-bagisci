@@ -9,6 +9,7 @@ export type DonationRow = {
   sharesCount: number
   sharesType: string
   country: string
+  phone: string | null
   notes: string | null
   receipt: string
   createdAt: string | Date
@@ -106,6 +107,9 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                         <span className="text-xs text-gray-400">{d.reference.name}</span>
                       )}
                     </div>
+                    {d.phone && (
+                      <p className="text-xs text-gray-500 mt-1">📞 {d.phone}</p>
+                    )}
                     {d.notes && (
                       <p className="text-xs text-gray-400 mt-1 truncate">{d.notes}</p>
                     )}
@@ -140,6 +144,7 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                   <th className="text-left px-4 py-3">Tür</th>
                   <th className="text-left px-4 py-3">Ülke</th>
                   {showReference && <th className="text-left px-4 py-3">Referans</th>}
+                  <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Not</th>
                   <th className="text-left px-4 py-3">Dekont</th>
                   {isOwner && <th className="text-left px-4 py-3"></th>}
@@ -162,6 +167,7 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                     {showReference && (
                       <td className="px-4 py-3 text-gray-600 text-sm">{d.reference?.name ?? '-'}</td>
                     )}
+                    <td className="px-4 py-3 text-gray-600 text-xs">{d.phone || '-'}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs max-w-[140px] truncate" title={d.notes ?? ''}>{d.notes || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${d.receipt === 'ALINDI' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>

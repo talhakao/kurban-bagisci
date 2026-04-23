@@ -25,6 +25,7 @@ model Donation {
   country     String
   referenceId Int
   reference   User     @relation(fields: [referenceId], references: [id])
+  phone       String?
   notes       String?
   receipt     String   @default("ALINMADI")
   createdAt   DateTime @default(now())

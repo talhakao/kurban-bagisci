@@ -112,6 +112,18 @@ export function DonationForm({ onClose }: Props) {
             </div>
 
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Telefon Numarası
+              </label>
+              <input
+                name="phone"
+                type="tel"
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
+                placeholder="05XX XXX XX XX"
+              />
+            </div>
+
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Not</label>
               <textarea
                 name="notes"
