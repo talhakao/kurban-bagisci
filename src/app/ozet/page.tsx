@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { Navbar } from '@/components/Navbar'
 import { DonationTable } from '@/components/DonationTable'
+import { ExportButton } from '@/components/ExportButton'
 import Link from 'next/link'
 
 export const metadata = { title: 'Genel Özet | Kurban Bağışı' }
@@ -31,9 +32,12 @@ export default async function OzetPage() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="max-w-7xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
-        <div className="mb-5">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Genel Özet</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Tüm üyelerin bağış toplamları</p>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Genel Özet</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Tüm üyelerin bağış toplamları</p>
+          </div>
+          <ExportButton />
         </div>
 
         {/* Genel istatistikler */}
