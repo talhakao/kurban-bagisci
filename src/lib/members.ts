@@ -10,4 +10,5 @@ export const MEMBERS = [
   { name: 'Malik', slug: 'malik' },
   { name: 'Mürsel', slug: 'mursel' },
   { name: 'Ömer', slug: 'omer' },
+  { name: 'Serhat', slug: 'serhat' },
 ]
