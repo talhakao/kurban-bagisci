@@ -1,15 +1,18 @@
 'use client'
 
 import { useState } from 'react'
-import { addDonation } from '@/app/actions'
+import { addDonation, updateDonation } from '@/app/actions'
+import { DonationRow } from './DonationTable'
 
 interface Props {
   onClose: () => void
+  donation?: DonationRow  // düzenleme modunda mevcut kayıt
 }
 
-export function DonationForm({ onClose }: Props) {
+export function DonationForm({ onClose, donation }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const isEdit = !!donation
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -18,7 +21,11 @@ export function DonationForm({ onClose }: Props) {
 
     try {
       const formData = new FormData(e.currentTarget)
-      await addDonation(formData)
+      if (isEdit) {
+        await updateDonation(donation.id, formData)
+      } else {
+        await addDonation(formData)
+      }
       onClose()
     } catch {
       setError('Bir hata oluştu, tekrar deneyin.')
@@ -28,19 +35,18 @@ export function DonationForm({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop tap to close */}
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] flex flex-col">
-        {/* Header */}
         <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-800">Yeni Bağış Ekle</h2>
+          <h2 className="text-lg font-bold text-gray-800">
+            {isEdit ? 'Bağışı Düzenle' : 'Yeni Bağış Ekle'}
+          </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors text-lg">
             ✕
           </button>
         </div>
 
-        {/* Scrollable form */}
         <div className="overflow-y-auto flex-1">
           <form onSubmit={handleSubmit} className="px-5 py-4 space-y-5">
             <div>
@@ -52,6 +58,7 @@ export function DonationForm({ onClose }: Props) {
                 type="text"
                 required
                 autoFocus
+                defaultValue={donation?.ownerName}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 placeholder="Ad Soyad"
               />
@@ -64,7 +71,7 @@ export function DonationForm({ onClose }: Props) {
               <select
                 name="sharesCount"
                 required
-                defaultValue="1"
+                defaultValue={donation?.sharesCount ?? 1}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-base"
               >
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -83,7 +90,13 @@ export function DonationForm({ onClose }: Props) {
                   { value: 'KUCUKBAS', label: '🐑 Küçükbaş' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="sharesType" value={value} defaultChecked={value === 'BUYUKBAS'} className="peer sr-only" />
+                    <input
+                      type="radio"
+                      name="sharesType"
+                      value={value}
+                      defaultChecked={(donation?.sharesType ?? 'BUYUKBAS') === value}
+                      className="peer sr-only"
+                    />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -102,7 +115,13 @@ export function DonationForm({ onClose }: Props) {
                   { value: 'TANZANYA', label: '🇹🇿 Tanzanya' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="country" value={value} defaultChecked={value === 'CAD'} className="peer sr-only" />
+                    <input
+                      type="radio"
+                      name="country"
+                      value={value}
+                      defaultChecked={(donation?.country ?? 'CAD') === value}
+                      className="peer sr-only"
+                    />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -118,6 +137,7 @@ export function DonationForm({ onClose }: Props) {
               <input
                 name="phone"
                 type="tel"
+                defaultValue={donation?.phone ?? ''}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 placeholder="05XX XXX XX XX"
               />
@@ -128,6 +148,7 @@ export function DonationForm({ onClose }: Props) {
               <textarea
                 name="notes"
                 rows={2}
+                defaultValue={donation?.notes ?? ''}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none text-base"
                 placeholder="Opsiyonel not..."
               />
@@ -143,7 +164,13 @@ export function DonationForm({ onClose }: Props) {
                   { value: 'ALINDI', label: '✅ Alındı' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="receipt" value={value} defaultChecked={value === 'ALINMADI'} className="peer sr-only" />
+                    <input
+                      type="radio"
+                      name="receipt"
+                      value={value}
+                      defaultChecked={(donation?.receipt ?? 'ALINMADI') === value}
+                      className="peer sr-only"
+                    />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -171,7 +198,7 @@ export function DonationForm({ onClose }: Props) {
                 disabled={loading}
                 className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl transition-colors font-medium disabled:opacity-50 text-base"
               >
-                {loading ? 'Kaydediliyor...' : 'Kaydet'}
+                {loading ? 'Kaydediliyor...' : isEdit ? 'Güncelle' : 'Kaydet'}
               </button>
             </div>
           </form>

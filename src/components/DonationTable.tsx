@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { deleteDonation } from '@/app/actions'
+import { DonationForm } from './DonationForm'
 
 export type DonationRow = {
   id: number
@@ -24,6 +25,7 @@ interface Props {
 
 export function DonationTable({ donations, isOwner, showReference = false }: Props) {
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [editingDonation, setEditingDonation] = useState<DonationRow | null>(null)
   const [search, setSearch] = useState('')
 
   async function handleDelete(id: number) {
@@ -119,13 +121,21 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                       {d.receipt === 'ALINDI' ? '✓ Alındı' : '✗ Bekliyor'}
                     </span>
                     {isOwner && (
-                      <button
-                        onClick={() => handleDelete(d.id)}
-                        disabled={deletingId === d.id}
-                        className="text-red-400 hover:text-red-600 text-xs disabled:opacity-40"
-                      >
-                        {deletingId === d.id ? '...' : 'Sil'}
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setEditingDonation(d)}
+                          className="text-blue-400 hover:text-blue-600 text-xs"
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => handleDelete(d.id)}
+                          disabled={deletingId === d.id}
+                          className="text-red-400 hover:text-red-600 text-xs disabled:opacity-40"
+                        >
+                          {deletingId === d.id ? '...' : 'Sil'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -147,7 +157,7 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                   <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Not</th>
                   <th className="text-left px-4 py-3">Dekont</th>
-                  {isOwner && <th className="text-left px-4 py-3"></th>}
+                  {isOwner && <th className="text-left px-4 py-3 w-24"></th>}
                 </tr>
               </thead>
               <tbody>
@@ -176,13 +186,21 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
                     </td>
                     {isOwner && (
                       <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleDelete(d.id)}
-                          disabled={deletingId === d.id}
-                          className="text-red-400 hover:text-red-600 text-xs disabled:opacity-40 transition-colors"
-                        >
-                          {deletingId === d.id ? '...' : 'Sil'}
-                        </button>
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => setEditingDonation(d)}
+                            className="text-blue-400 hover:text-blue-600 text-xs transition-colors"
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            onClick={() => handleDelete(d.id)}
+                            disabled={deletingId === d.id}
+                            className="text-red-400 hover:text-red-600 text-xs disabled:opacity-40 transition-colors"
+                          >
+                            {deletingId === d.id ? '...' : 'Sil'}
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -191,6 +209,13 @@ export function DonationTable({ donations, isOwner, showReference = false }: Pro
             </table>
           </div>
         </>
+      )}
+
+      {editingDonation && (
+        <DonationForm
+          donation={editingDonation}
+          onClose={() => setEditingDonation(null)}
+        />
       )}
 
       {/* Footer totals */}

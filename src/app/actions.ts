@@ -43,6 +43,36 @@ export async function addDonation(formData: FormData) {
   revalidatePath('/ozet')
 }
 
+export async function updateDonation(id: number, formData: FormData) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
+
+  const donation = await prisma.donation.findUnique({
+    where: { id },
+    include: { reference: true },
+  })
+
+  if (!donation || donation.reference.slug !== session.user.slug) {
+    throw new Error('Bu işlem için yetkiniz yok')
+  }
+
+  await prisma.donation.update({
+    where: { id },
+    data: {
+      ownerName: formData.get('ownerName') as string,
+      sharesCount: parseInt(formData.get('sharesCount') as string),
+      sharesType: formData.get('sharesType') as string,
+      country: formData.get('country') as string,
+      phone: (formData.get('phone') as string) || null,
+      notes: (formData.get('notes') as string) || null,
+      receipt: formData.get('receipt') as string,
+    },
+  })
+
+  revalidatePath(`/${session.user.slug}`)
+  revalidatePath('/ozet')
+}
+
 export async function deleteDonation(id: number) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
