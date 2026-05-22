@@ -74,6 +74,37 @@ export async function assignToGroup(donationId: number, groupId: number | null) 
   revalidatePath('/ozet')
 }
 
+export async function renameGroup(groupId: number, name: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
+
+  const group = await prisma.donationGroup.findUnique({
+    where: { id: groupId },
+    include: { owner: true },
+  })
+
+  if (!group || group.owner?.slug !== session.user.slug) {
+    throw new Error('Bu işlem için yetkiniz yok')
+  }
+
+  await prisma.donationGroup.update({ where: { id: groupId }, data: { name } })
+
+  revalidatePath(`/${session.user.slug}`)
+  revalidatePath('/ozet')
+}
+
+export async function renameOzetGroup(groupId: number, name: string) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
+
+  const group = await prisma.donationGroup.findUnique({ where: { id: groupId } })
+  if (!group || !group.isOzet) throw new Error('Bu işlem için yetkiniz yok')
+
+  await prisma.donationGroup.update({ where: { id: groupId }, data: { name } })
+
+  revalidatePath('/ozet')
+}
+
 export async function createOzetGroup(name: string) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.slug) throw new Error('Giriş yapılmamış')

@@ -16,21 +16,38 @@ export async function GET() {
     orderBy: [{ group: { name: 'asc' } }, { reference: { name: 'asc' } }, { createdAt: 'desc' }],
   })
 
-  const rows = donations.map((d, i) => ({
-    '#': i + 1,
-    'Grup': d.group?.name ?? '-',
-    'Hisse Sahibi': d.ownerName,
-    'Hisse Adedi': d.sharesCount,
-    'Hisse Türü': d.sharesType === 'BUYUKBAS' ? 'Büyükbaş' : 'Küçükbaş',
-    'Ülke': d.country === 'CAD' ? 'Çad' : 'Tanzanya',
-    'Referans (YK)': d.reference.name,
-    'Telefon': d.phone ?? '',
-    'Not': d.notes ?? '',
-    'Dekont': d.receipt === 'ALINDI' ? 'Alındı' : 'Alınmadı',
-    'Tarih': new Date(d.createdAt).toLocaleDateString('tr-TR'),
-  }))
+  const headers = ['#', 'Grup', 'Hisse Sahibi', 'Hisse Adedi', 'Hisse Türü', 'Ülke', 'Referans (YK)', 'Telefon', 'Not', 'Dekont', 'Tarih']
 
-  const ws = XLSX.utils.json_to_sheet(rows)
+  const aoa: unknown[][] = [headers]
+  let rowNum = 0
+  let lastGroup: string | null = undefined as unknown as string | null
+
+  for (const d of donations) {
+    const groupName = d.group?.name ?? '-'
+
+    if (lastGroup !== undefined && groupName !== lastGroup) {
+      aoa.push([])
+    }
+
+    rowNum++
+    aoa.push([
+      rowNum,
+      groupName,
+      d.ownerName,
+      d.sharesCount,
+      d.sharesType === 'BUYUKBAS' ? 'Büyükbaş' : 'Küçükbaş',
+      d.country === 'CAD' ? 'Çad' : 'Tanzanya',
+      d.reference.name,
+      d.phone ?? '',
+      d.notes ?? '',
+      d.receipt === 'ALINDI' ? 'Alındı' : 'Alınmadı',
+      new Date(d.createdAt).toLocaleDateString('tr-TR'),
+    ])
+
+    lastGroup = groupName
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
 
   ws['!cols'] = [
     { wch: 4 },   // #

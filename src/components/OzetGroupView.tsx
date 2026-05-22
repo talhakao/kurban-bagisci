@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   assignToOzetGroup,
   createOzetGroup,
   deleteOzetGroup,
+  renameOzetGroup,
 } from '@/app/group-actions'
 
 export type OzetDonation = {
@@ -39,6 +40,9 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
   const [showNewGroup, setShowNewGroup] = useState(false)
   const [creating, setCreating] = useState(false)
   const [assigningId, setAssigningId] = useState<number | null>(null)
+  const [renamingId, setRenamingId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setGroups(initialGroups) }, [initialGroups])
   useEffect(() => { setUngrouped(initialUngrouped) }, [initialUngrouped])
@@ -103,6 +107,28 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
       router.refresh()
     } finally {
       setAssigningId(null)
+    }
+  }
+
+  function startRenameOzet(group: OzetGroup) {
+    setRenamingId(group.id)
+    setRenameValue(group.name)
+    setTimeout(() => renameRef.current?.select(), 0)
+  }
+
+  async function commitRenameOzet(groupId: number) {
+    const trimmed = renameValue.trim()
+    if (!trimmed) { setRenamingId(null); return }
+    const prev = groups.find((g) => g.id === groupId)?.name ?? ''
+    if (trimmed === prev) { setRenamingId(null); return }
+
+    setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: trimmed } : g)))
+    setRenamingId(null)
+    try {
+      await renameOzetGroup(groupId, trimmed)
+    } catch {
+      alert('İsim güncellenemedi')
+      setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: prev } : g)))
     }
   }
 
@@ -206,8 +232,28 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
             return (
               <div key={group.id} className={`rounded-xl border-2 ${isFull ? 'border-green-200 bg-green-50/50' : 'border-blue-200 bg-blue-50/30'}`}>
                 <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-800 text-sm">{group.name}</span>
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {renamingId === group.id ? (
+                      <input
+                        ref={renameRef}
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => commitRenameOzet(group.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') commitRenameOzet(group.id)
+                          if (e.key === 'Escape') setRenamingId(null)
+                        }}
+                        className="font-semibold text-gray-800 text-sm border-b border-green-500 outline-none bg-transparent w-32"
+                      />
+                    ) : (
+                      <span
+                        className="font-semibold text-gray-800 text-sm cursor-pointer hover:text-green-600"
+                        onClick={() => startRenameOzet(group)}
+                        title="Düzenlemek için tıkla"
+                      >
+                        {group.name}
+                      </span>
+                    )}
                     <div className="flex items-center gap-1.5">
                       <div className="w-12 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                         <div

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignToGroup, createGroup, deleteGroup } from '@/app/group-actions'
+import { assignToGroup, createGroup, deleteGroup, renameGroup } from '@/app/group-actions'
 
 export type GroupDonation = {
   id: number
@@ -33,6 +33,9 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
   const [newGroupName, setNewGroupName] = useState('')
   const [showNewGroup, setShowNewGroup] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [renamingId, setRenamingId] = useState<number | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const renameRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setDonations(initialDonations)
@@ -120,6 +123,28 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
     }
   }
 
+  function startRename(group: DonationGroupData) {
+    setRenamingId(group.id)
+    setRenameValue(group.name)
+    setTimeout(() => renameRef.current?.select(), 0)
+  }
+
+  async function commitRename(groupId: number) {
+    const trimmed = renameValue.trim()
+    if (!trimmed) { setRenamingId(null); return }
+    const prev = groups.find((g) => g.id === groupId)?.name ?? ''
+    if (trimmed === prev) { setRenamingId(null); return }
+
+    setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: trimmed } : g)))
+    setRenamingId(null)
+    try {
+      await renameGroup(groupId, trimmed)
+    } catch {
+      alert('İsim güncellenemedi')
+      setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: prev } : g)))
+    }
+  }
+
   return (
     <div className="space-y-3">
       {groups.map((group) => {
@@ -143,8 +168,28 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
             onDrop={isOwner ? (e) => { e.preventDefault(); handleDrop(group.id) } : undefined}
           >
             <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-gray-800 text-sm">{group.name}</span>
+              <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                {isOwner && renamingId === group.id ? (
+                  <input
+                    ref={renameRef}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onBlur={() => commitRename(group.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename(group.id)
+                      if (e.key === 'Escape') setRenamingId(null)
+                    }}
+                    className="font-semibold text-gray-800 text-sm border-b border-green-500 outline-none bg-transparent w-32"
+                  />
+                ) : (
+                  <span
+                    className={`font-semibold text-gray-800 text-sm ${isOwner ? 'cursor-pointer hover:text-green-600' : ''}`}
+                    onClick={isOwner ? () => startRename(group) : undefined}
+                    title={isOwner ? 'Düzenlemek için tıkla' : undefined}
+                  >
+                    {group.name}
+                  </span>
+                )}
                 <div className="flex items-center gap-1.5">
                   <div className="w-16 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                     <div
