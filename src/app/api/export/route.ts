@@ -11,21 +11,22 @@ export async function GET() {
   const donations = await prisma.donation.findMany({
     include: {
       reference: { select: { name: true } },
-      group: { select: { name: true, isOzet: true } },
+      group: { select: { id: true, name: true, isOzet: true } },
     },
-    orderBy: [{ group: { name: 'asc' } }, { reference: { name: 'asc' } }, { createdAt: 'desc' }],
+    orderBy: [{ groupId: 'asc' }, { reference: { name: 'asc' } }, { createdAt: 'desc' }],
   })
 
   const headers = ['#', 'Grup', 'Hisse Sahibi', 'Hisse Adedi', 'Hisse Türü', 'Ülke', 'Referans (YK)', 'Telefon', 'Not', 'Dekont', 'Tarih']
 
   const aoa: unknown[][] = [headers]
   let rowNum = 0
-  let lastGroup: string | null = undefined as unknown as string | null
+  let lastGroupId: number | null | undefined = undefined
 
   for (const d of donations) {
+    const groupId = d.groupId ?? null
     const groupName = d.group?.name ?? '-'
 
-    if (lastGroup !== undefined && groupName !== lastGroup) {
+    if (lastGroupId !== undefined && groupId !== lastGroupId) {
       aoa.push([])
     }
 
@@ -44,7 +45,7 @@ export async function GET() {
       new Date(d.createdAt).toLocaleDateString('tr-TR'),
     ])
 
-    lastGroup = groupName
+    lastGroupId = groupId
   }
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)

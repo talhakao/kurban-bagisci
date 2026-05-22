@@ -12,6 +12,11 @@ export async function createGroup(name: string) {
   const user = await prisma.user.findUnique({ where: { slug: session.user.slug } })
   if (!user) throw new Error('Kullanıcı bulunamadı')
 
+  const existing = await prisma.donationGroup.findFirst({
+    where: { ownerId: user.id, isOzet: false, name: { equals: name, mode: 'insensitive' } },
+  })
+  if (existing) throw new Error(`"${name}" adında zaten bir grup var`)
+
   await prisma.donationGroup.create({
     data: { name, ownerId: user.id, isOzet: false },
   })
@@ -87,6 +92,16 @@ export async function renameGroup(groupId: number, name: string) {
     throw new Error('Bu işlem için yetkiniz yok')
   }
 
+  const existing = await prisma.donationGroup.findFirst({
+    where: {
+      ownerId: group.ownerId,
+      isOzet: false,
+      name: { equals: name, mode: 'insensitive' },
+      NOT: { id: groupId },
+    },
+  })
+  if (existing) throw new Error(`"${name}" adında zaten bir grup var`)
+
   await prisma.donationGroup.update({ where: { id: groupId }, data: { name } })
 
   revalidatePath(`/${session.user.slug}`)
@@ -100,6 +115,11 @@ export async function renameOzetGroup(groupId: number, name: string) {
   const group = await prisma.donationGroup.findUnique({ where: { id: groupId } })
   if (!group || !group.isOzet) throw new Error('Bu işlem için yetkiniz yok')
 
+  const existing = await prisma.donationGroup.findFirst({
+    where: { isOzet: true, name: { equals: name, mode: 'insensitive' }, NOT: { id: groupId } },
+  })
+  if (existing) throw new Error(`"${name}" adında zaten bir özet grubu var`)
+
   await prisma.donationGroup.update({ where: { id: groupId }, data: { name } })
 
   revalidatePath('/ozet')
@@ -108,6 +128,11 @@ export async function renameOzetGroup(groupId: number, name: string) {
 export async function createOzetGroup(name: string) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
+
+  const existing = await prisma.donationGroup.findFirst({
+    where: { isOzet: true, name: { equals: name, mode: 'insensitive' } },
+  })
+  if (existing) throw new Error(`"${name}" adında zaten bir özet grubu var`)
 
   const group = await prisma.donationGroup.create({
     data: { name, ownerId: null, isOzet: true },
