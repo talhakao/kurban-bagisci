@@ -13,6 +13,7 @@ export type DonationRow = {
   phone: string | null
   notes: string | null
   receipt: string
+  groupId?: number | null
   createdAt: string | Date
   reference?: { name: string; slug: string }
 }

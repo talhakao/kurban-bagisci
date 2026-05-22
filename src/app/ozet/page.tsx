@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { Navbar } from '@/components/Navbar'
 import { DonationTable } from '@/components/DonationTable'
 import { ExportButton } from '@/components/ExportButton'
+import { OzetGroupView, OzetGroup, OzetDonation } from '@/components/OzetGroupView'
 import Link from 'next/link'
 
 export const metadata = { title: 'Genel Özet | Kurban Bağışı' }
@@ -27,6 +28,47 @@ export default async function OzetPage() {
   const tanzanyaTotal = allDonations.filter((d) => d.country === 'TANZANYA').reduce((s, d) => s + d.sharesCount, 0)
   const alindi = allDonations.filter((d) => d.receipt === 'ALINDI').length
   const alinmadi = allDonations.filter((d) => d.receipt === 'ALINMADI').length
+
+  // Fetch groups for group view
+  const dbGroups = await prisma.donationGroup.findMany({
+    include: {
+      owner: { select: { name: true, slug: true } },
+      donations: {
+        include: { reference: { select: { name: true, slug: true } } },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  const groups: OzetGroup[] = dbGroups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    isOzet: g.isOzet,
+    owner: g.owner,
+    donations: g.donations.map((d) => ({
+      id: d.id,
+      ownerName: d.ownerName,
+      sharesCount: d.sharesCount,
+      sharesType: d.sharesType,
+      country: d.country,
+      groupId: d.groupId,
+      reference: d.reference,
+    })),
+  }))
+
+  const groupedIds = new Set(dbGroups.flatMap((g) => g.donations.map((d) => d.id)))
+
+  const ungrouped: OzetDonation[] = allDonations
+    .filter((d) => !groupedIds.has(d.id))
+    .map((d) => ({
+      id: d.id,
+      ownerName: d.ownerName,
+      sharesCount: d.sharesCount,
+      sharesType: d.sharesType,
+      country: d.country,
+      groupId: null,
+      reference: d.reference,
+    }))
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,6 +204,26 @@ export default async function OzetPage() {
             </table>
           </div>
         </div>
+
+        {/* Grup Yönetimi */}
+        {(groups.length > 0 || ungrouped.length > 0) && (
+          <div className="bg-white rounded-xl border shadow-sm mb-6 overflow-hidden">
+            <div className="p-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-800">Kurban Grupları</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Her grup = 1 kurban (maks 7 hisse) · Üye grupları kilitli, özet grupları düzenlenebilir
+                </p>
+              </div>
+              <div className="text-xs text-gray-400">
+                {groups.length} grup · {ungrouped.length} grupsuz
+              </div>
+            </div>
+            <div className="p-4">
+              <OzetGroupView groups={groups} ungrouped={ungrouped} />
+            </div>
+          </div>
+        )}
 
         {/* Üye detay tabloları */}
         {allUsers

@@ -25,6 +25,10 @@ export default async function MemberPage({ params }: Props) {
         orderBy: { createdAt: 'desc' },
         include: { reference: { select: { name: true, slug: true } } },
       },
+      groups: {
+        where: { isOzet: false },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   })
 
@@ -34,7 +38,13 @@ export default async function MemberPage({ params }: Props) {
 
   const donations = pageUser.donations.map((d) => ({
     ...d,
+    groupId: d.groupId,
     createdAt: d.createdAt.toISOString(),
+  }))
+
+  const groups = pageUser.groups.map((g) => ({
+    id: g.id,
+    name: g.name,
   }))
 
   return (
@@ -43,6 +53,7 @@ export default async function MemberPage({ params }: Props) {
       <MemberPageClient
         pageUser={{ id: pageUser.id, name: pageUser.name, slug: pageUser.slug }}
         donations={donations}
+        groups={groups}
         isOwner={isOwner}
       />
     </div>

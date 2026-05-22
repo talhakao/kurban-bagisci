@@ -9,12 +9,16 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
 
   const donations = await prisma.donation.findMany({
-    include: { reference: { select: { name: true } } },
-    orderBy: [{ reference: { name: 'asc' } }, { createdAt: 'desc' }],
+    include: {
+      reference: { select: { name: true } },
+      group: { select: { name: true, isOzet: true } },
+    },
+    orderBy: [{ group: { name: 'asc' } }, { reference: { name: 'asc' } }, { createdAt: 'desc' }],
   })
 
   const rows = donations.map((d, i) => ({
     '#': i + 1,
+    'Grup': d.group?.name ?? '-',
     'Hisse Sahibi': d.ownerName,
     'Hisse Adedi': d.sharesCount,
     'Hisse Türü': d.sharesType === 'BUYUKBAS' ? 'Büyükbaş' : 'Küçükbaş',
@@ -30,6 +34,7 @@ export async function GET() {
 
   ws['!cols'] = [
     { wch: 4 },   // #
+    { wch: 18 },  // Grup
     { wch: 28 },  // Hisse Sahibi
     { wch: 12 },  // Hisse Adedi
     { wch: 12 },  // Hisse Türü

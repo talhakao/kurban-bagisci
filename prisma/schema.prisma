@@ -9,24 +9,37 @@ datasource db {
 }
 
 model User {
+  id        Int             @id @default(autoincrement())
+  name      String
+  slug      String          @unique
+  password  String
+  donations Donation[]
+  groups    DonationGroup[]
+  createdAt DateTime        @default(now())
+}
+
+model DonationGroup {
   id        Int        @id @default(autoincrement())
   name      String
-  slug      String     @unique
-  password  String
+  ownerId   Int?
+  owner     User?      @relation(fields: [ownerId], references: [id])
+  isOzet    Boolean    @default(false)
   donations Donation[]
   createdAt DateTime   @default(now())
 }
 
 model Donation {
-  id          Int      @id @default(autoincrement())
+  id          Int            @id @default(autoincrement())
   ownerName   String
   sharesCount Int
   sharesType  String
   country     String
   referenceId Int
-  reference   User     @relation(fields: [referenceId], references: [id])
+  reference   User           @relation(fields: [referenceId], references: [id])
   phone       String?
   notes       String?
-  receipt     String   @default("ALINMADI")
-  createdAt   DateTime @default(now())
+  receipt     String         @default("ALINMADI")
+  groupId     Int?
+  group       DonationGroup? @relation(fields: [groupId], references: [id])
+  createdAt   DateTime       @default(now())
 }

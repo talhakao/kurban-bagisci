@@ -3,20 +3,32 @@
 import { useState } from 'react'
 import { DonationForm } from '@/components/DonationForm'
 import { DonationTable, DonationRow } from '@/components/DonationTable'
+import { GroupBoard, DonationGroupData } from '@/components/GroupBoard'
 
 interface Props {
   pageUser: { id: number; name: string; slug: string }
   donations: DonationRow[]
+  groups: DonationGroupData[]
   isOwner: boolean
 }
 
-export function MemberPageClient({ pageUser, donations, isOwner }: Props) {
+export function MemberPageClient({ pageUser, donations, groups, isOwner }: Props) {
   const [showForm, setShowForm] = useState(false)
+  const [tab, setTab] = useState<'liste' | 'gruplar'>('liste')
 
   const totalShares = donations.reduce((s, d) => s + d.sharesCount, 0)
   const buyukbas = donations.filter((d) => d.sharesType === 'BUYUKBAS').reduce((s, d) => s + d.sharesCount, 0)
   const kucukbas = donations.filter((d) => d.sharesType === 'KUCUKBAS').reduce((s, d) => s + d.sharesCount, 0)
   const alindi = donations.filter((d) => d.receipt === 'ALINDI').length
+
+  const groupDonations = donations.map((d) => ({
+    id: d.id,
+    ownerName: d.ownerName,
+    sharesCount: d.sharesCount,
+    sharesType: d.sharesType,
+    country: d.country,
+    groupId: d.groupId ?? null,
+  }))
 
   return (
     <main className="max-w-7xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
@@ -64,14 +76,45 @@ export function MemberPageClient({ pageUser, donations, isOwner }: Props) {
       {alindi < donations.length && donations.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-orange-700">
           <span>⚠️</span>
-          <span><strong>{donations.length - alindi}</strong> bağışın dekontu henüz alınmadı.</span>
+          <span>
+            <strong>{donations.length - alindi}</strong> bağışın dekontu henüz alınmadı.
+          </span>
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-        <DonationTable donations={donations} isOwner={isOwner} />
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-gray-100 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setTab('liste')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            tab === 'liste' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Bağış Listesi
+        </button>
+        <button
+          onClick={() => setTab('gruplar')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            tab === 'gruplar' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Gruplar {groups.length > 0 && <span className="ml-1 bg-green-100 text-green-700 text-xs px-1.5 py-0.5 rounded-full">{groups.length}</span>}
+        </button>
       </div>
+
+      {tab === 'liste' && (
+        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+          <DonationTable donations={donations} isOwner={isOwner} />
+        </div>
+      )}
+
+      {tab === 'gruplar' && (
+        <GroupBoard
+          donations={groupDonations}
+          groups={groups}
+          isOwner={isOwner}
+        />
+      )}
 
       {showForm && <DonationForm onClose={() => setShowForm(false)} />}
     </main>
