@@ -95,8 +95,8 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
       setNewGroupName('')
       setShowNewGroup(false)
       router.refresh()
-    } catch {
-      alert('Grup oluşturulamadı')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Grup oluşturulamadı')
     } finally {
       setCreating(false)
     }
@@ -139,9 +139,23 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
     setRenamingId(null)
     try {
       await renameGroup(groupId, trimmed)
-    } catch {
-      alert('İsim güncellenemedi')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'İsim güncellenemedi')
       setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: prev } : g)))
+    }
+  }
+
+  // Track duplicate names to add ordinal suffixes
+  const nameCount: Record<string, number> = {}
+  const nameIndex: Record<number, number> = {}
+  for (const g of groups) {
+    nameCount[g.name] = (nameCount[g.name] ?? 0) + 1
+  }
+  const nameSeen: Record<string, number> = {}
+  for (const g of groups) {
+    if (nameCount[g.name] > 1) {
+      nameSeen[g.name] = (nameSeen[g.name] ?? 0) + 1
+      nameIndex[g.id] = nameSeen[g.name]
     }
   }
 
@@ -152,6 +166,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
         const totalShares = groupDonations.reduce((s, d) => s + d.sharesCount, 0)
         const isFull = totalShares >= 7
         const isOver = dragOver === group.id
+        const dupSuffix = nameIndex[group.id] ? ` #${nameIndex[group.id]}` : ''
 
         return (
           <div
@@ -188,6 +203,11 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
                     title={isOwner ? 'Düzenlemek için tıkla' : undefined}
                   >
                     {group.name}
+                    {dupSuffix && (
+                      <span className="ml-1 text-xs font-normal text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-200">
+                        {dupSuffix.trim()} — ismi değiştirin
+                      </span>
+                    )}
                   </span>
                 )}
                 <div className="flex items-center gap-1.5">

@@ -126,8 +126,8 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
     setRenamingId(null)
     try {
       await renameOzetGroup(groupId, trimmed)
-    } catch {
-      alert('İsim güncellenemedi')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'İsim güncellenemedi')
       setGroups((gs) => gs.map((g) => (g.id === groupId ? { ...g, name: prev } : g)))
     }
   }
@@ -140,8 +140,8 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
       setNewGroupName('')
       setShowNewGroup(false)
       router.refresh()
-    } catch {
-      alert('Grup oluşturulamadı')
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Grup oluşturulamadı')
     } finally {
       setCreating(false)
     }
@@ -173,6 +173,18 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
   }
 
   const allOzetDonations = [...ungrouped, ...ozetGroups.flatMap((g) => g.donations)]
+
+  // Compute duplicate name indices for ozet groups
+  const ozetNameCount: Record<string, number> = {}
+  for (const g of ozetGroups) ozetNameCount[g.name] = (ozetNameCount[g.name] ?? 0) + 1
+  const ozetNameSeen: Record<string, number> = {}
+  const ozetDupIndex: Record<number, number> = {}
+  for (const g of ozetGroups) {
+    if (ozetNameCount[g.name] > 1) {
+      ozetNameSeen[g.name] = (ozetNameSeen[g.name] ?? 0) + 1
+      ozetDupIndex[g.id] = ozetNameSeen[g.name]
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -229,6 +241,7 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
           {ozetGroups.map((group) => {
             const totalShares = group.donations.reduce((s, d) => s + d.sharesCount, 0)
             const isFull = totalShares >= 7
+            const dupSuffix = ozetDupIndex[group.id] ? ` #${ozetDupIndex[group.id]}` : ''
             return (
               <div key={group.id} className={`rounded-xl border-2 ${isFull ? 'border-green-200 bg-green-50/50' : 'border-blue-200 bg-blue-50/30'}`}>
                 <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2">
@@ -252,6 +265,11 @@ export function OzetGroupView({ groups: initialGroups, ungrouped: initialUngroup
                         title="Düzenlemek için tıkla"
                       >
                         {group.name}
+                        {dupSuffix && (
+                          <span className="ml-1 text-xs font-normal text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-200">
+                            {dupSuffix.trim()} — ismi değiştirin
+                          </span>
+                        )}
                       </span>
                     )}
                     <div className="flex items-center gap-1.5">
