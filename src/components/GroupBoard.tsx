@@ -35,15 +35,48 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
   const [creating, setCreating] = useState(false)
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [quickAddOpenId, setQuickAddOpenId] = useState<number | null>(null)
   const renameRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    setDonations(initialDonations)
-  }, [initialDonations])
+  useEffect(() => { setDonations(initialDonations) }, [initialDonations])
+  useEffect(() => { setGroups(initialGroups) }, [initialGroups])
 
+  // Auto-scroll when dragging near top/bottom of viewport
   useEffect(() => {
-    setGroups(initialGroups)
-  }, [initialGroups])
+    if (!isOwner) return
+    const ZONE = 120
+    const MAX_SPEED = 14
+    let raf: number | null = null
+    let mouseY = 0
+    let active = false
+
+    const onDragOver = (e: DragEvent) => { mouseY = e.clientY }
+
+    const tick = () => {
+      if (!active) return
+      const distTop = mouseY
+      const distBottom = window.innerHeight - mouseY
+      if (distTop < ZONE) {
+        window.scrollBy(0, -MAX_SPEED * (1 - distTop / ZONE))
+      } else if (distBottom < ZONE) {
+        window.scrollBy(0, MAX_SPEED * (1 - distBottom / ZONE))
+      }
+      raf = requestAnimationFrame(tick)
+    }
+
+    const onDragStart = () => { active = true; raf = requestAnimationFrame(tick) }
+    const onDragEnd = () => { active = false; if (raf) cancelAnimationFrame(raf) }
+
+    document.addEventListener('dragover', onDragOver)
+    document.addEventListener('dragstart', onDragStart)
+    document.addEventListener('dragend', onDragEnd)
+    return () => {
+      document.removeEventListener('dragover', onDragOver)
+      document.removeEventListener('dragstart', onDragStart)
+      document.removeEventListener('dragend', onDragEnd)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [isOwner])
 
   function getGroupShares(groupId: number, excludeId?: number) {
     return donations
@@ -53,38 +86,35 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
 
   const ungrouped = donations.filter((d) => d.groupId === null)
 
-  async function handleDrop(targetGroupId: number | null) {
-    if (draggingId === null) return
-    const donation = donations.find((d) => d.id === draggingId)
-    if (!donation || donation.groupId === targetGroupId) {
-      setDragOver(null)
-      return
-    }
+  async function handleAssign(donationId: number, targetGroupId: number | null) {
+    const donation = donations.find((d) => d.id === donationId)
+    if (!donation || donation.groupId === targetGroupId) return
 
     if (targetGroupId !== null) {
-      const sharesInTarget = getGroupShares(targetGroupId, draggingId)
+      const sharesInTarget = getGroupShares(targetGroupId, donationId)
       if (sharesInTarget + donation.sharesCount > 7) {
         alert('Bu grupta yeterli kapasite yok (maks 7 hisse)')
-        setDragOver(null)
         return
       }
     }
 
     const prevGroupId = donation.groupId
-    setDonations((prev) =>
-      prev.map((d) => (d.id === draggingId ? { ...d, groupId: targetGroupId } : d))
-    )
-    setDragOver(null)
-    setDraggingId(null)
+    setDonations((prev) => prev.map((d) => (d.id === donationId ? { ...d, groupId: targetGroupId } : d)))
+    setQuickAddOpenId(null)
 
     try {
-      await assignToGroup(draggingId, targetGroupId)
+      await assignToGroup(donationId, targetGroupId)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Bir hata oluştu')
-      setDonations((prev) =>
-        prev.map((d) => (d.id === draggingId ? { ...d, groupId: prevGroupId } : d))
-      )
+      setDonations((prev) => prev.map((d) => (d.id === donationId ? { ...d, groupId: prevGroupId } : d)))
     }
+  }
+
+  async function handleDrop(targetGroupId: number | null) {
+    if (draggingId === null) return
+    setDragOver(null)
+    await handleAssign(draggingId, targetGroupId)
+    setDraggingId(null)
   }
 
   async function handleCreateGroup() {
@@ -104,12 +134,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
 
   async function handleDeleteGroup(groupId: number, groupName: string) {
     const inGroup = donations.filter((d) => d.groupId === groupId).length
-    if (
-      !confirm(
-        `"${groupName}" grubunu silmek istiyor musunuz?${inGroup > 0 ? ` ${inGroup} bağış grupsuz kalacak.` : ''}`
-      )
-    )
-      return
+    if (!confirm(`"${groupName}" grubunu silmek istiyor musunuz?${inGroup > 0 ? ` ${inGroup} bağış grupsuz kalacak.` : ''}`)) return
 
     setGroups((prev) => prev.filter((g) => g.id !== groupId))
     setDonations((prev) => prev.map((d) => (d.groupId === groupId ? { ...d, groupId: null } : d)))
@@ -145,13 +170,11 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
     }
   }
 
-  // Track duplicate names to add ordinal suffixes
+  // Duplicate name badge suffixes
   const nameCount: Record<string, number> = {}
-  const nameIndex: Record<number, number> = {}
-  for (const g of groups) {
-    nameCount[g.name] = (nameCount[g.name] ?? 0) + 1
-  }
+  for (const g of groups) nameCount[g.name] = (nameCount[g.name] ?? 0) + 1
   const nameSeen: Record<string, number> = {}
+  const nameIndex: Record<number, number> = {}
   for (const g of groups) {
     if (nameCount[g.name] > 1) {
       nameSeen[g.name] = (nameSeen[g.name] ?? 0) + 1
@@ -160,7 +183,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" onClick={() => setQuickAddOpenId(null)}>
       {groups.map((group) => {
         const groupDonations = donations.filter((d) => d.groupId === group.id)
         const totalShares = groupDonations.reduce((s, d) => s + d.sharesCount, 0)
@@ -172,11 +195,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
           <div
             key={group.id}
             className={`rounded-xl border-2 transition-all ${
-              isOver
-                ? 'border-green-400 bg-green-50'
-                : isFull
-                ? 'border-green-200 bg-green-50/50'
-                : 'border-gray-200 bg-white'
+              isOver ? 'border-green-400 bg-green-50' : isFull ? 'border-green-200 bg-green-50/50' : 'border-gray-200 bg-white'
             }`}
             onDragOver={isOwner ? (e) => { e.preventDefault(); setDragOver(group.id) } : undefined}
             onDragLeave={isOwner ? () => setDragOver(null) : undefined}
@@ -234,9 +253,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
 
             <div className="p-2 space-y-1.5 min-h-[44px]">
               {groupDonations.length === 0 && (
-                <p className="text-center py-3 text-gray-300 text-xs select-none">
-                  Bağış sürükleyin...
-                </p>
+                <p className="text-center py-3 text-gray-300 text-xs select-none">Bağış sürükleyin...</p>
               )}
               {groupDonations.map((d) => (
                 <DonationChip
@@ -246,6 +263,8 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
                   isDragging={draggingId === d.id}
                   onDragStart={() => setDraggingId(d.id)}
                   onDragEnd={() => { setDraggingId(null); setDragOver(null) }}
+                  // "−" button to move back to ungrouped
+                  onRemoveFromGroup={() => handleAssign(d.id, null)}
                 />
               ))}
             </div>
@@ -256,9 +275,7 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
       {/* Ungrouped zone */}
       <div
         className={`rounded-xl border-2 transition-all ${
-          dragOver === 'ungrouped'
-            ? 'border-orange-300 bg-orange-50'
-            : 'border-dashed border-gray-200 bg-gray-50'
+          dragOver === 'ungrouped' ? 'border-orange-300 bg-orange-50' : 'border-dashed border-gray-200 bg-gray-50'
         }`}
         onDragOver={isOwner ? (e) => { e.preventDefault(); setDragOver('ungrouped') } : undefined}
         onDragLeave={isOwner ? () => setDragOver(null) : undefined}
@@ -266,26 +283,35 @@ export function GroupBoard({ donations: initialDonations, groups: initialGroups,
       >
         <div className="px-4 py-2.5 border-b border-dashed border-gray-200">
           <span className="font-medium text-gray-500 text-sm">
-            Grupsuz ({ungrouped.length} bağış ·{' '}
-            {ungrouped.reduce((s, d) => s + d.sharesCount, 0)} hisse)
+            Grupsuz ({ungrouped.length} bağış · {ungrouped.reduce((s, d) => s + d.sharesCount, 0)} hisse)
           </span>
         </div>
         <div className="p-2 space-y-1.5 min-h-[44px]">
           {ungrouped.length === 0 ? (
-            <p className="text-center py-3 text-gray-300 text-xs select-none">
-              Tüm bağışlar gruplandırıldı
-            </p>
+            <p className="text-center py-3 text-gray-300 text-xs select-none">Tüm bağışlar gruplandırıldı</p>
           ) : (
-            ungrouped.map((d) => (
-              <DonationChip
-                key={d.id}
-                donation={d}
-                isOwner={isOwner}
-                isDragging={draggingId === d.id}
-                onDragStart={() => setDraggingId(d.id)}
-                onDragEnd={() => { setDraggingId(null); setDragOver(null) }}
-              />
-            ))
+            ungrouped.map((d) => {
+              const availableGroups = groups.filter(
+                (g) => getGroupShares(g.id) + d.sharesCount <= 7
+              )
+              return (
+                <DonationChip
+                  key={d.id}
+                  donation={d}
+                  isOwner={isOwner}
+                  isDragging={draggingId === d.id}
+                  onDragStart={() => setDraggingId(d.id)}
+                  onDragEnd={() => { setDraggingId(null); setDragOver(null) }}
+                  availableGroups={availableGroups}
+                  quickAddOpen={quickAddOpenId === d.id}
+                  onToggleQuickAdd={(e) => {
+                    e.stopPropagation()
+                    setQuickAddOpenId(quickAddOpenId === d.id ? null : d.id)
+                  }}
+                  onQuickAdd={(groupId) => handleAssign(d.id, groupId)}
+                />
+              )
+            })
           )}
         </div>
       </div>
@@ -338,41 +364,95 @@ function DonationChip({
   isDragging,
   onDragStart,
   onDragEnd,
+  availableGroups,
+  quickAddOpen,
+  onToggleQuickAdd,
+  onQuickAdd,
+  onRemoveFromGroup,
 }: {
   donation: GroupDonation
   isOwner: boolean
   isDragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
+  availableGroups?: DonationGroupData[]
+  quickAddOpen?: boolean
+  onToggleQuickAdd?: (e: React.MouseEvent) => void
+  onQuickAdd?: (groupId: number) => void
+  onRemoveFromGroup?: () => void
 }) {
   return (
-    <div
-      draggable={isOwner}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-white border text-sm transition-all select-none ${
-        isDragging ? 'opacity-40 scale-95 shadow-lg' : 'hover:shadow-sm'
-      } ${isOwner ? 'cursor-grab active:cursor-grabbing' : ''}`}
-    >
-      {isOwner && (
-        <span className="text-gray-300 text-base leading-none">⠿</span>
-      )}
-      <span className="flex-1 font-medium text-gray-700 truncate">{donation.ownerName}</span>
-      <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-semibold flex-shrink-0">
-        {donation.sharesCount}h
-      </span>
-      <span
-        className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
-          donation.sharesType === 'BUYUKBAS'
-            ? 'bg-amber-100 text-amber-700'
-            : 'bg-purple-100 text-purple-700'
-        }`}
+    <div className="relative">
+      <div
+        draggable={isOwner}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-white border text-sm transition-all select-none ${
+          isDragging ? 'opacity-40 scale-95 shadow-lg' : 'hover:shadow-sm'
+        } ${isOwner ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
-        {donation.sharesType === 'BUYUKBAS' ? 'BB' : 'KB'}
-      </span>
-      <span className="text-xs text-gray-400 flex-shrink-0">
-        {donation.country === 'CAD' ? '🇹🇩' : '🇹🇿'}
-      </span>
+        {isOwner && <span className="text-gray-300 text-base leading-none">⠿</span>}
+        <span className="flex-1 font-medium text-gray-700 truncate">{donation.ownerName}</span>
+        <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full text-xs font-semibold flex-shrink-0">
+          {donation.sharesCount}h
+        </span>
+        <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
+          donation.sharesType === 'BUYUKBAS' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'
+        }`}>
+          {donation.sharesType === 'BUYUKBAS' ? 'BB' : 'KB'}
+        </span>
+        <span className="text-xs text-gray-400 flex-shrink-0">
+          {donation.country === 'CAD' ? '🇹🇩' : '🇹🇿'}
+        </span>
+
+        {/* "+" button for ungrouped chips */}
+        {isOwner && availableGroups && onToggleQuickAdd && (
+          <button
+            onClick={onToggleQuickAdd}
+            title="Gruba ekle"
+            className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+              quickAddOpen
+                ? 'bg-green-500 text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-600'
+            }`}
+          >
+            +
+          </button>
+        )}
+
+        {/* "−" button for grouped chips */}
+        {isOwner && onRemoveFromGroup && (
+          <button
+            onClick={onRemoveFromGroup}
+            title="Gruptan çıkar"
+            className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center text-xs font-bold transition-colors"
+          >
+            −
+          </button>
+        )}
+      </div>
+
+      {/* Quick-add dropdown */}
+      {quickAddOpen && availableGroups && onQuickAdd && (
+        <div
+          className="absolute right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {availableGroups.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-gray-400">Uygun grup yok</p>
+          ) : (
+            availableGroups.map((g) => (
+              <button
+                key={g.id}
+                onClick={() => onQuickAdd(g.id)}
+                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 transition-colors"
+              >
+                {g.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   )
 }
