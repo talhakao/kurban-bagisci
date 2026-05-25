@@ -59,6 +59,10 @@ export function Navbar() {
               )}
             </div>
 
+            <Link href="/son-gunler" className={`font-medium transition-colors ${pathname === '/son-gunler' ? 'text-green-600' : 'text-gray-600 hover:text-green-600'}`}>
+              Son Günler
+            </Link>
+
             <Link href="/ozet" className={`font-medium transition-colors ${pathname === '/ozet' ? 'text-green-600' : 'text-gray-600 hover:text-green-600'}`}>
               Genel Özet
             </Link>
@@ -100,6 +104,10 @@ export function Navbar() {
                   <span>👤</span> Sayfam
                 </Link>
               )}
+
+              <Link href="/son-gunler" onClick={close} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-700">
+                <span>⏳</span> Son Günler
+              </Link>
 
               <Link href="/ozet" onClick={close} className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-green-50 hover:text-green-700">
                 <span>📊</span> Genel Özet

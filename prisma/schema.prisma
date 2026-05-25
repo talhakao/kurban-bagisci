@@ -9,13 +9,28 @@ datasource db {
 }
 
 model User {
-  id        Int             @id @default(autoincrement())
-  name      String
-  slug      String          @unique
-  password  String
-  donations Donation[]
-  groups    DonationGroup[]
-  createdAt DateTime        @default(now())
+  id               Int               @id @default(autoincrement())
+  name             String
+  slug             String            @unique
+  password         String
+  donations        Donation[]
+  groups           DonationGroup[]
+  sonGunlerEntries SonGunlerEntry[]
+  createdAt        DateTime          @default(now())
+}
+
+model SonGunlerEntry {
+  id          Int      @id @default(autoincrement())
+  name        String
+  sharesCount Int
+  sharesType  String
+  country     String
+  phone       String?
+  notes       String?
+  receipt     String   @default("ALINMADI")
+  addedById   Int
+  addedBy     User     @relation(fields: [addedById], references: [id])
+  createdAt   DateTime @default(now())
 }
 
 model DonationGroup {
