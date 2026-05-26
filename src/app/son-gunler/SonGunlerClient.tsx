@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { addSonGunlerEntry, deleteSonGunlerEntry } from './actions'
+import { addSonGunlerEntry, updateSonGunlerEntry, deleteSonGunlerEntry } from './actions'
 
 export type SonGunlerRow = {
   id: number
@@ -26,6 +26,7 @@ export function SonGunlerClient({ entries: initialEntries, currentSlug }: Props)
   const router = useRouter()
   const [entries, setEntries] = useState(initialEntries)
   const [showForm, setShowForm] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<SonGunlerRow | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [search, setSearch] = useState('')
 
@@ -120,8 +121,6 @@ export function SonGunlerClient({ entries: initialEntries, currentSlug }: Props)
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-800">{entry.name}</p>
-
-                  {/* Badges */}
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-semibold">
                       {entry.sharesCount} hisse
@@ -136,15 +135,8 @@ export function SonGunlerClient({ entries: initialEntries, currentSlug }: Props)
                       {entry.receipt === 'ALINDI' ? '✓ Dekont Alındı' : '✗ Dekont Bekliyor'}
                     </span>
                   </div>
-
-                  {entry.phone && (
-                    <p className="text-sm text-gray-500 mt-1.5">📞 {entry.phone}</p>
-                  )}
-                  {entry.notes && (
-                    <p className="text-sm text-gray-400 mt-1 italic">{entry.notes}</p>
-                  )}
-
-                  {/* Added by */}
+                  {entry.phone && <p className="text-sm text-gray-500 mt-1.5">📞 {entry.phone}</p>}
+                  {entry.notes && <p className="text-sm text-gray-400 mt-1 italic">{entry.notes}</p>}
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
                       {entry.addedBy.name}
@@ -154,13 +146,21 @@ export function SonGunlerClient({ entries: initialEntries, currentSlug }: Props)
                 </div>
 
                 {entry.addedBy.slug === currentSlug && (
-                  <button
-                    onClick={() => handleDelete(entry.id)}
-                    disabled={deletingId === entry.id}
-                    className="text-red-400 hover:text-red-600 text-xs flex-shrink-0 disabled:opacity-40 mt-0.5"
-                  >
-                    {deletingId === entry.id ? '...' : 'Sil'}
-                  </button>
+                  <div className="flex gap-3 flex-shrink-0 mt-0.5">
+                    <button
+                      onClick={() => setEditingEntry(entry)}
+                      className="text-blue-400 hover:text-blue-600 text-xs"
+                    >
+                      Düzenle
+                    </button>
+                    <button
+                      onClick={() => handleDelete(entry.id)}
+                      disabled={deletingId === entry.id}
+                      className="text-red-400 hover:text-red-600 text-xs disabled:opacity-40"
+                    >
+                      {deletingId === entry.id ? '...' : 'Sil'}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -190,11 +190,28 @@ export function SonGunlerClient({ entries: initialEntries, currentSlug }: Props)
           onSaved={() => { setShowForm(false); router.refresh() }}
         />
       )}
+
+      {editingEntry && (
+        <SonGunlerForm
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={() => { setEditingEntry(null); router.refresh() }}
+        />
+      )}
     </div>
   )
 }
 
-function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function SonGunlerForm({
+  entry,
+  onClose,
+  onSaved,
+}: {
+  entry?: SonGunlerRow
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isEdit = !!entry
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -203,7 +220,12 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     setLoading(true)
     setError('')
     try {
-      await addSonGunlerEntry(new FormData(e.currentTarget))
+      const formData = new FormData(e.currentTarget)
+      if (isEdit) {
+        await updateSonGunlerEntry(entry.id, formData)
+      } else {
+        await addSonGunlerEntry(formData)
+      }
       onSaved()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Bir hata oluştu')
@@ -216,14 +238,14 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       <div className="absolute inset-0" onClick={onClose} />
       <div className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[92vh] flex flex-col">
         <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-gray-800">Son Günler — Bağışçı Ekle</h2>
+          <h2 className="text-lg font-bold text-gray-800">
+            {isEdit ? 'Kaydı Düzenle' : 'Son Günler — Bağışçı Ekle'}
+          </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 text-lg">✕</button>
         </div>
 
         <div className="overflow-y-auto flex-1">
           <form onSubmit={handleSubmit} className="px-5 py-4 space-y-5">
-
-            {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Ad Soyad <span className="text-red-500">*</span>
@@ -233,12 +255,12 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 type="text"
                 required
                 autoFocus
+                defaultValue={entry?.name}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 placeholder="Bağışçının adı soyadı"
               />
             </div>
 
-            {/* Shares count */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 Hisse Adedi <span className="text-red-500">*</span>
@@ -246,7 +268,7 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               <select
                 name="sharesCount"
                 required
-                defaultValue={1}
+                defaultValue={entry?.sharesCount ?? 1}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white text-base"
               >
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
@@ -255,7 +277,6 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               </select>
             </div>
 
-            {/* Shares type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Hisse Türü <span className="text-red-500">*</span>
@@ -266,7 +287,7 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                   { value: 'KUCUKBAS', label: '🐑 Küçükbaş' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="sharesType" value={value} defaultChecked={value === 'BUYUKBAS'} className="peer sr-only" />
+                    <input type="radio" name="sharesType" value={value} defaultChecked={(entry?.sharesType ?? 'BUYUKBAS') === value} className="peer sr-only" />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -275,7 +296,6 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               </div>
             </div>
 
-            {/* Country */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ülke <span className="text-red-500">*</span>
@@ -286,7 +306,7 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                   { value: 'TANZANYA', label: '🇹🇿 Tanzanya' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="country" value={value} defaultChecked={value === 'CAD'} className="peer sr-only" />
+                    <input type="radio" name="country" value={value} defaultChecked={(entry?.country ?? 'CAD') === value} className="peer sr-only" />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -295,29 +315,28 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               </div>
             </div>
 
-            {/* Phone */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Telefon</label>
               <input
                 name="phone"
                 type="tel"
+                defaultValue={entry?.phone ?? ''}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 text-base"
                 placeholder="05XX XXX XX XX"
               />
             </div>
 
-            {/* Notes */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Not</label>
               <textarea
                 name="notes"
                 rows={2}
+                defaultValue={entry?.notes ?? ''}
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 resize-none text-base"
                 placeholder="İletişim durumu vb..."
               />
             </div>
 
-            {/* Receipt */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Dekont <span className="text-red-500">*</span>
@@ -328,7 +347,7 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                   { value: 'ALINDI', label: '✅ Alındı' },
                 ].map(({ value, label }) => (
                   <label key={value} className="relative cursor-pointer">
-                    <input type="radio" name="receipt" value={value} defaultChecked={value === 'ALINMADI'} className="peer sr-only" />
+                    <input type="radio" name="receipt" value={value} defaultChecked={(entry?.receipt ?? 'ALINMADI') === value} className="peer sr-only" />
                     <div className="border-2 border-gray-200 rounded-xl py-3 text-center text-sm font-medium text-gray-600 peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 transition-all">
                       {label}
                     </div>
@@ -346,7 +365,7 @@ function SonGunlerForm({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 İptal
               </button>
               <button type="submit" disabled={loading} className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-medium disabled:opacity-50 text-base">
-                {loading ? 'Kaydediliyor...' : 'Kaydet'}
+                {loading ? 'Kaydediliyor...' : isEdit ? 'Güncelle' : 'Kaydet'}
               </button>
             </div>
           </form>

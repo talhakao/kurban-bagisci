@@ -29,6 +29,39 @@ export async function addSonGunlerEntry(formData: FormData) {
   revalidatePath('/son-gunler')
 }
 
+export async function updateSonGunlerEntry(id: number, formData: FormData) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
+
+  const entry = await prisma.sonGunlerEntry.findUnique({
+    where: { id },
+    include: { addedBy: true },
+  })
+
+  if (!entry || entry.addedBy.slug !== session.user.slug) {
+    throw new Error('Bu kaydı düzenleme yetkiniz yok')
+  }
+
+  const name = (formData.get('name') as string)?.trim()
+  if (!name) throw new Error('İsim zorunludur')
+
+  await prisma.sonGunlerEntry.update({
+    where: { id },
+    data: {
+      name,
+      sharesCount: parseInt(formData.get('sharesCount') as string),
+      sharesType: formData.get('sharesType') as string,
+      country: formData.get('country') as string,
+      phone: (formData.get('phone') as string)?.trim() || null,
+      notes: (formData.get('notes') as string)?.trim() || null,
+      receipt: formData.get('receipt') as string,
+    },
+  })
+
+  revalidatePath('/son-gunler')
+  revalidatePath('/ozet')
+}
+
 export async function deleteSonGunlerEntry(id: number) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.slug) throw new Error('Giriş yapılmamış')
