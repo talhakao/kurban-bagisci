@@ -21,23 +21,16 @@ export default async function OzetPage() {
 
   const allDonations = allUsers.flatMap((u) => u.donations)
 
-  const grandTotal = allDonations.reduce((s, d) => s + d.sharesCount, 0)
-  const buyukbasTotal = allDonations.filter((d) => d.sharesType === 'BUYUKBAS').reduce((s, d) => s + d.sharesCount, 0)
-  const kucukbasTotal = allDonations.filter((d) => d.sharesType === 'KUCUKBAS').reduce((s, d) => s + d.sharesCount, 0)
-  const cadTotal = allDonations.filter((d) => d.country === 'CAD').reduce((s, d) => s + d.sharesCount, 0)
-  const tanzanyaTotal = allDonations.filter((d) => d.country === 'TANZANYA').reduce((s, d) => s + d.sharesCount, 0)
-  const alindi = allDonations.filter((d) => d.receipt === 'ALINDI').length
-  const alinmadi = allDonations.filter((d) => d.receipt === 'ALINMADI').length
+  const sonGunler = await prisma.sonGunlerEntry.findMany()
 
-  // Son Günler totals
-  const sonGunler = await prisma.sonGunlerEntry.findMany({
-    include: { addedBy: { select: { name: true } } },
-  })
-  const sgTotal = sonGunler.reduce((s, e) => s + e.sharesCount, 0)
-  const sgBuyukbas = sonGunler.filter((e) => e.sharesType === 'BUYUKBAS').reduce((s, e) => s + e.sharesCount, 0)
-  const sgKucukbas = sonGunler.filter((e) => e.sharesType === 'KUCUKBAS').reduce((s, e) => s + e.sharesCount, 0)
-  const sgAlindi = sonGunler.filter((e) => e.receipt === 'ALINDI').length
-  const sgAlinmadi = sonGunler.filter((e) => e.receipt === 'ALINMADI').length
+  const grandTotal = allDonations.reduce((s, d) => s + d.sharesCount, 0) + sonGunler.reduce((s, e) => s + e.sharesCount, 0)
+  const buyukbasTotal = allDonations.filter((d) => d.sharesType === 'BUYUKBAS').reduce((s, d) => s + d.sharesCount, 0) + sonGunler.filter((e) => e.sharesType === 'BUYUKBAS').reduce((s, e) => s + e.sharesCount, 0)
+  const kucukbasTotal = allDonations.filter((d) => d.sharesType === 'KUCUKBAS').reduce((s, d) => s + d.sharesCount, 0) + sonGunler.filter((e) => e.sharesType === 'KUCUKBAS').reduce((s, e) => s + e.sharesCount, 0)
+  const cadTotal = allDonations.filter((d) => d.country === 'CAD').reduce((s, d) => s + d.sharesCount, 0) + sonGunler.filter((e) => e.country === 'CAD').reduce((s, e) => s + e.sharesCount, 0)
+  const tanzanyaTotal = allDonations.filter((d) => d.country === 'TANZANYA').reduce((s, d) => s + d.sharesCount, 0) + sonGunler.filter((e) => e.country === 'TANZANYA').reduce((s, e) => s + e.sharesCount, 0)
+  const alindi = allDonations.filter((d) => d.receipt === 'ALINDI').length + sonGunler.filter((e) => e.receipt === 'ALINDI').length
+  const alinmadi = allDonations.filter((d) => d.receipt === 'ALINMADI').length + sonGunler.filter((e) => e.receipt === 'ALINMADI').length
+  const totalKayit = allDonations.length + sonGunler.length
 
   // Fetch groups for group view
   const dbGroups = await prisma.donationGroup.findMany({
@@ -95,7 +88,7 @@ export default async function OzetPage() {
         {/* Genel istatistikler */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
           {[
-            { label: 'Toplam Kayıt', value: allDonations.length, color: 'text-gray-800' },
+            { label: 'Toplam Kayıt', value: totalKayit, color: 'text-gray-800' },
             { label: 'Toplam Hisse', value: grandTotal, color: 'text-green-600' },
             { label: 'Büyükbaş', value: buyukbasTotal, color: 'text-amber-500' },
             { label: 'Küçükbaş', value: kucukbasTotal, color: 'text-purple-500' },
@@ -138,41 +131,11 @@ export default async function OzetPage() {
           </div>
         </div>
 
-        {/* Son Günler özeti */}
+        {/* Son Günler dahil edildi notu */}
         {sonGunler.length > 0 && (
-          <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">⏳</span>
-                <h2 className="font-semibold text-gray-800">Son Günler</h2>
-                <span className="text-xs text-gray-400">{sonGunler.length} bekleyen kayıt</span>
-              </div>
-              <Link href="/son-gunler" className="text-xs text-orange-600 hover:text-orange-700 font-medium hover:underline">
-                Tümünü Gör →
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
-              <div className="bg-white rounded-lg p-2.5 border border-orange-100">
-                <div className="font-bold text-gray-800 text-lg">{sgTotal}</div>
-                <div className="text-xs text-gray-400">Toplam Hisse</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-orange-100">
-                <div className="font-bold text-amber-600 text-lg">{sgBuyukbas}</div>
-                <div className="text-xs text-gray-400">Büyükbaş</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-orange-100">
-                <div className="font-bold text-purple-600 text-lg">{sgKucukbas}</div>
-                <div className="text-xs text-gray-400">Küçükbaş</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-orange-100">
-                <div className="font-bold text-green-600 text-lg">{sgAlindi}</div>
-                <div className="text-xs text-gray-400">Dekont ✓</div>
-              </div>
-              <div className="bg-white rounded-lg p-2.5 border border-orange-100">
-                <div className="font-bold text-red-500 text-lg">{sgAlinmadi}</div>
-                <div className="text-xs text-gray-400">Dekont ✗</div>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 mb-4 text-xs text-gray-400">
+            <span>⏳</span>
+            <span>Yukarıdaki rakamlara <Link href="/son-gunler" className="text-orange-500 hover:underline">Son Günler</Link>&apos;deki {sonGunler.length} kayıt dahildir.</span>
           </div>
         )}
 
